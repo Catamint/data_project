@@ -1,0 +1,9 @@
+{
+    "editor.fontFamily": "JetBrains Mono, 'Courier New', monospace",
+    "editor.fontSize": 15,
+    "python.condaPath": "C:\\Users\\ME\\anaconda3\\Scripts\\conda-script.py",
+    "python.defaultInterpreterPath": "C:\\Users\\ME\\anaconda3\\python.exe",
+    "python.pythonPath": "C:\\Users\\ME\\anaconda3\\python.exe",
+    "python.terminal.activateEnvironment": true,
+    "workbench.colorTheme": "JetBrains Darcula Theme"
+}
