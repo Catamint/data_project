@@ -53,14 +53,13 @@ def preprocess(data):
     off_train["Distance"]=off_train["Distance"].map(int)
 
 
-
 def get_user_feature(received):
     '''
     提取用户特征
     - 保证传入的所有数据都有领券
     '''
     data = received.copy()
-    print("getting features")
+    print("getting user_features")
     data['cnt']=1
     name_prifix="feature_" #前缀
 
@@ -88,6 +87,8 @@ def get_user_feature_l(received):
     - 保证传入的所有数据都有领券
     - 保证传入的数据应有label列
     '''
+    print("getting user_features_l")
+
     received=received.copy()
     data=pd.DataFrame(list(set(received['User_id'].tolist())),columns=['User_id'])
     received['cnt']=1
@@ -98,23 +99,27 @@ def get_user_feature_l(received):
         received,index='User_id', values='cnt', aggfunc=np.sum
             ).reset_index().rename(columns={'cnt': name_prifix+"total_coupon"})
     data=pd.merge(data,pivoted,on='User_id',how='left')
-    print(data)
+    # print(data)
+
     # 2、用户领券"并消费"数
     pivoted=pd.pivot_table(
         received,index='User_id', values='label', aggfunc=np.sum
             ).reset_index().rename(columns={'label': name_prifix+"used"})
     data=pd.merge(data,pivoted,on='User_id',how='left')
-    print(data)
+    # print(data)
+
     # 3、用户领券"未消费"数
     data.insert(0,name_prifix+'not_use',data[name_prifix+'total_coupon']-data[name_prifix+"used"])
-    print(data)
+    # print(data)
+
     # 4、 用户领券"并消费"数 / 领券数、
     data.insert(0,name_prifix+'rate_used',data[name_prifix+"used"]/data[name_prifix+'total_coupon'])
-    print(data)
-    print(data[data[name_prifix+'rate_used']>0])
+    # print(data)
+    # print(data[data[name_prifix+'rate_used']>0])
+
 
     received_used = received[received['label']==1].copy() # 数据中有消费的部分
-    
+
     # 5、用户领取"并消费"优惠券的平均折扣率、
     pivoted=pd.pivot_table(
         received_used,index='User_id', values='discount', aggfunc=np.average
@@ -122,7 +127,7 @@ def get_user_feature_l(received):
     data=pd.merge(data,pivoted,on='User_id',how='left')
     data[name_prifix+"used_average_discount"] = \
         data[name_prifix+"used_average_discount"].map(lambda x: -1 if x!=x else x)
-    print(data[data[name_prifix+"used_average_discount"]>0])
+    # print(data[data[name_prifix+"used_average_discount"]>0])
 
     # 6、用户领取"并消费"优惠券的平均距离、
     pivoted=pd.pivot_table(
@@ -131,40 +136,59 @@ def get_user_feature_l(received):
     data=pd.merge(data,pivoted,on='User_id',how='left')
     data[name_prifix+"used_average_distance"] = \
         data[name_prifix+"used_average_distance"].map(lambda x: -1 if x!=x else x)
-    print(data[data[name_prifix+"used_average_distance"]>0])
+    # print(data[data[name_prifix+"used_average_distance"]>0])
 
     # 7、用户在多少不同商家领取"并消费"优惠券、
     gpb=received_used.groupby('User_id').agg({'Merchant_id':lambda x:len(set(x))}) \
         .reset_index().rename(columns={'Merchant_id': name_prifix+"used_howmuch_merchant"})
-    print(gpb)
+    # print(gpb)
     data=pd.merge(data,gpb,on='User_id',how='left')
     data[name_prifix+"used_howmuch_merchant"] = \
         data[name_prifix+"used_howmuch_merchant"].map(lambda x : 0 if x!=x else int(x))
-    print(data[name_prifix+"used_howmuch_merchant"])
+    # print(data[name_prifix+"used_howmuch_merchant"])
+
     # 8、用户在多少不同商家领取优惠券、
     gpb=received.groupby('User_id').agg({'Merchant_id':lambda x:len(set(x))}) \
         .reset_index().rename(columns={'Merchant_id': name_prifix+"howmuch_merchant"})
     data=pd.merge(data,gpb,on='User_id',how='left')
     data[name_prifix+"howmuch_merchant"] = \
         data[name_prifix+"howmuch_merchant"].map(lambda x : 0 if x!=x else int(x))
-    print(data[name_prifix+"howmuch_merchant"])
+    # print(data[name_prifix+"howmuch_merchant"])
+
     # 9、用户在多少不同商家领取"并消费"优惠券 / 用户在多少不同商家领取优惠券
     data.insert(0,name_prifix+'rate_used_howmuch_merchant',
         data[name_prifix+"used_howmuch_merchant"]/data[name_prifix+'howmuch_merchant'])
-    print(data[name_prifix+'rate_used_howmuch_merchant'])
-    print(data[data[name_prifix+'rate_used_howmuch_merchant']>0])
+    # print(data[name_prifix+'rate_used_howmuch_merchant'])
+    # print(data[data[name_prifix+'rate_used_howmuch_merchant']>0])
 
     received.drop(['cnt'], axis=1, inplace=True)
     return data
 
+def get_user_feature_test(dataset):
+    data=pd.DataFrame(dataset).copy()
+    from pandas.tseries.offsets import Day
+
+    data = data[['User_id', 'Coupon_id', 'date_received']]
+    df_t=data.set_index('date_received').sort_index()
+    print(df_t)
+
+    def inmap(date_r, uid, cid, df_t=df_t):
+        df_t=df_t[(df_t['Coupon_id']==cid) & (df_t['User_id']==uid)]
+        a=(date_r-7*Day()).strftime('%Y-%m-%d')
+        b=(date_r+7*Day()).strftime('%Y-%m-%d')
+        df_t=df_t[a:b]
+        return len(df_t)
+
+    data['sum']=list(map(inmap, data['date_received'], data['User_id'], data['Coupon_id']))
+
+    print(data)
+    return data
+
 def get_label(data):
-    '''
-    数据打标
-    '''
+    # 数据打标
     total_seconds = 15*24*3600.0
     data['label']=list(map(lambda x,y: 
         1 if (x - y).total_seconds()<=total_seconds else 0, data['date'], data['date_received']))
-    # print(pd.pivot_table(data,index='label',values='cnt',aggfunc=len))
 
 
 def get_dataset(field):
@@ -196,7 +220,11 @@ def get_dataset(field):
     return dataset
 
 
-def model_xgb(train, validate, test):
+def model_xgb(train, validate):
+    '''
+    训练模型
+    - return (model: xgb_booster)
+    '''
     params = {'booster': 'gbtree',
               'objective': 'binary:logistic',
               'eval_metric': 'auc',
@@ -212,48 +240,106 @@ def model_xgb(train, validate, test):
               'scale_pos_weight': 1}
     # 数据集
     dtrain = xgb.DMatrix(train.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=train['label'])
-    # if validate != None:
     dval = xgb.DMatrix(validate.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=validate['label'])
-    dtest = xgb.DMatrix(test.drop(['User_id', 'Coupon_id', 'Date_received'], axis=1))
     
     # 训练
-    # if validate != None:
     watchlist = [(dtrain, 'train'),(dval, 'val')]
-    # else:
-        # watchlist = [(dtrain, 'train')]
-    model = xgb.train(params, dtrain, num_boost_round=100, evals=watchlist)
-    
+    model = xgb.train(params, dtrain, num_boost_round=250, evals=watchlist)
+
+    return model
+
+
+def test_online(model, test):
+    '''
+    返回线上测试集的预测结果
+    - args (model: xgb_booster, test: DataFrame)
+    - returns (result, feat_importance)
+    '''
+    dtest = xgb.DMatrix(test.drop(['User_id', 'Coupon_id', 'Date_received'], axis=1))
+
     # 预测
     predict = model.predict(dtest)
 
     # 处理结果
     predict = pd.DataFrame(predict, columns=['pred'])
     result = pd.concat([test[['User_id', 'Coupon_id', 'Date_received']], predict], axis=1)
-    
-    # 特征重要性
-    feat_importance = pd.DataFrame(columns=['feature_name', 'importance'])
-    feat_importance['feature_name'] = model.get_score().keys()
-    feat_importance['importance'] = model.get_score().values()
-    feat_importance.sort_values(['importance'], ascending=False, inplace=True)
-    return result, feat_importance
+
+    return result
+
 
 def interval(data,contain,beginning,lenth):
     '''
     划分区间
     '''
     field = data[
-        data[contain].isin(pd.date_range(beginning, periods=lenth))]
+        data[contain].isin(pd.date_range(beginning, periods=lenth))].copy()
     return field
 
 
-off_train = pd.read_csv("#test\data\ccf_offline_stage1_train.csv")
-off_test = pd.read_csv("#test\data\ccf_offline_stage1_test_revised.csv")
+def get_feat_importance(model):
+    # 特征重要性
+    feature_importance = pd.DataFrame(columns=['feature', 'importance'])
+    feature_importance['feature'] = model.get_score().keys()
+    feature_importance['importance'] = model.get_score().values()
+    feature_importance.sort_values(['importance'], ascending=False, inplace=True)
+    feature_importance.to_csv('result/feat_importance.csv', index=False, header=None)
+    print("feature_importance is saved.")
+
+
+def get_result(model,test):
+    # 线上验证
+    result = test_online(model, test=test)
+    result.to_csv('result/result.csv', index=False, header=None)
+    print("results are saved.")
+
+off_train = pd.read_csv("resourse/data/ccf_offline_stage1_train.csv")
+off_test = pd.read_csv("resourse/data/ccf_offline_stage1_test_revised.csv")
 
 preprocess(off_train)
 preprocess(off_test)
 get_label(off_train)
 
 # 数据划分
+
+# def train_final():
+feature_l_set_train=interval(off_train,'date_received','2016/1/1',60).copy()
+feature_l_set_val=interval(off_train,'date_received','2016/3/1',60).copy()
+
+train = interval(off_train,'date_received','2016/3/1',62).copy() # 训练集 0330
+validate = interval(off_train,'date_received','2016/5/17',31).copy() # 训练过程中用来检验的区间
+test = off_test # 测试集
+
+# 提取特征
+train=get_user_feature(train)
+validate=get_user_feature(validate)
+test=get_user_feature(test)
+
+# train=get_user_feature_test(train)
+# validate=get_user_feature_test(validate)
+
+user_feature_l_train=get_user_feature_l(feature_l_set_train)
+user_feature_l_val=get_user_feature_l(feature_l_set_val)
+
+# 合并特征
+train=pd.merge(train, user_feature_l_train, on='User_id', how='left')
+validate=pd.merge(validate, user_feature_l_val, on='User_id', how='left')
+test=pd.merge(test, user_feature_l_train, on='User_id', how='left')
+
+train.to_csv('result/train.csv', index=False)
+validate.to_csv('result/val.csv', index=False)
+
+
+# 构造数据集
+train=get_dataset(train)
+validate=get_dataset(validate)
+test=get_dataset(test)
+
+# 训练
+model = model_xgb(train, validate)
+get_feat_importance(model)
+get_result(model,test)
+
+
 
 '''
 # 训练集历史区间、中间区间、标签区间
@@ -292,36 +378,3 @@ def train_small():
     validate = get_dataset(pre_val) # 训练过程中用来检验的区间
     test = get_dataset(off_test) 
 '''
-
-# def train_final():
-train = interval(off_train,'date_received','2016/3/1',62).copy() # 训练集 0330
-validate = interval(off_train,'date_received','2016/5/17',31).copy() # 训练过程中用来检验的区间
-test = off_test # 测试集
-
-# 提取特征
-train=get_user_feature(train)
-validate=get_user_feature(validate)
-test=get_user_feature(test)
-user_feature_l=get_user_feature_l(train)
-
-# 合并特征
-train=pd.merge(train, user_feature_l, on='User_id', how='left')
-validate=pd.merge(validate, user_feature_l, on='User_id', how='left')
-test=pd.merge(test, user_feature_l, on='User_id', how='left')
-
-# 构造数据集
-train=get_dataset(train)
-validate=get_dataset(validate)
-test=get_dataset(test)
-
-
-#测试集(off_test和前31天的数据)
-
-# 线下验证
-# result_off = model_xgb(train, validate.drop(['label'], axis=1))
-
-# 线上训练
-result, feat_importance = model_xgb(train, validate, test=test)
-feat_importance.to_csv('feat_importance.csv', index=False, header=None)
-result.to_csv('result.csv', index=False, header=None)
-
