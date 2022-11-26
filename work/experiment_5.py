@@ -3,19 +3,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xgboost as xgb
 from pandas import MultiIndex, Int16Dtype
+# import shap
 
 # 数据预处理
-def preprocess(data):
-    off_train=pd.DataFrame(data)
+def preprocess(received):
+    data=pd.DataFrame(received)
     print("preprocessing")
 
     ## 时间格式转换
-    off_train["date_received"]=pd.to_datetime(
-        off_train["Date_received"],format="%Y%m%d")
+    data["date_received"]=pd.to_datetime(
+        data["Date_received"],format="%Y%m%d")
 
-    if 'Date' in off_train.columns.tolist():
-        off_train["date"]=pd.to_datetime(
-            off_train["Date"],format="%Y%m%d")
+    if 'Date' in data.columns.tolist():
+        data["date"]=pd.to_datetime(
+            data["Date"],format="%Y%m%d")
 
     ## 满减格式规范
     ### 满减转换成折扣率 <注意仅当rate中有':'>
@@ -25,20 +26,20 @@ def preprocess(data):
         return (int(a)-int(b))/int(a)
 
     ### have_discount = 是否有优惠券
-    off_train.insert(loc=4, column="have_discount",
-                value=off_train["Discount_rate"].notnull())
+    data.insert(loc=4, column="have_discount",
+                value=data["Discount_rate"].notnull())
     # print(off_train["have_discount"])
 
     ### discount = 折扣率
-    off_train.insert(loc=5, column="discount",
-                value=off_train["Discount_rate"].map(
+    data.insert(loc=5, column="discount",
+                value=data["Discount_rate"].map(
                     lambda x: float(rate_to_count(x)) \
                         if ":" in str(x) else float(x)))
     # print(off_train["discount"])
 
     ### 满减门槛价格
-    off_train.insert(loc=6,column="price_before",
-                value=off_train["Discount_rate"].map(
+    data.insert(loc=6,column="price_before",
+                value=data["Discount_rate"].map(
                     lambda x: float(str(x).split(sep=":")[0]) \
                         if ":" in str(x) else float(x)))
     # print(off_train["price_before"])
@@ -47,11 +48,11 @@ def preprocess(data):
     ###
 
     ## 缺失值处理
-    off_train["Distance"]=off_train["Distance"].map(
+    data["Distance"]=data["Distance"].map(
         lambda x: -1 if x!=x else x)
 
     ## 统一数据格式
-    off_train["Distance"]=off_train["Distance"].map(int)
+    data["Distance"]=data["Distance"].map(int)
 
 
 def get_user_feature_label(received):
@@ -60,10 +61,15 @@ def get_user_feature_label(received):
     - 保证传入的所有数据都有领券
     '''
     data = received.copy()
-    print("getting user_features")
+    print("getting user_feature_label")
     data['cnt']=1
     name_prifix="user_feature_label_" #前缀
 
+    # 1、用户领券数
+    pivoted=pd.pivot_table(
+        data,index='User_id', values='cnt', aggfunc=np.sum
+            ).reset_index().rename(columns={'cnt': name_prifix+"total_coupon"})
+    data=pd.merge(data,pivoted,on='User_id',how='left')
     # 用户领取特定种类券数
     pivoted=pd.pivot_table(
         data,index=['User_id', 'Coupon_id'], values='cnt',aggfunc=np.sum
@@ -80,6 +86,12 @@ def get_user_feature_label(received):
             ).reset_index().rename(columns={'cnt': name_prifix+"today_this_coupon"})
     data=pd.merge(data,pivoted,on=['User_id', 'date_received', 'Coupon_id'],how='left')
     data.drop(['cnt'], axis=1, inplace=True)
+
+    # 用户距上次领券时间间隔
+    # 用户距下次领券时间间隔
+    # n天内领券数
+
+    # 是否为n天内第一次/最后一次
     return data
 
 def get_user_feature_history(received):
@@ -88,7 +100,7 @@ def get_user_feature_history(received):
     - 保证传入的所有数据都有领券
     - 保证传入的数据应有label列
     '''
-    print("getting user_features_l")
+    print("getting user_feature_history")
 
     received=received.copy()
     data=pd.DataFrame(list(set(received['User_id'].tolist())),columns=['User_id'])
@@ -117,7 +129,6 @@ def get_user_feature_history(received):
     data.insert(0,name_prifix+'rate_used',data[name_prifix+"used"]/data[name_prifix+'total_coupon'])
     # print(data)
     # print(data[data[name_prifix+'rate_used']>0])
-
 
     received_used = received[received['label']==1].copy() # 数据中有消费的部分
 
@@ -162,9 +173,18 @@ def get_user_feature_history(received):
     # print(data[name_prifix+'rate_used_howmuch_merchant'])
     # print(data[data[name_prifix+'rate_used_howmuch_merchant']>0])
 
+    # 用户未领券消费数
+    # 用户消费数
+    # 用户用券购买最小距离/平均距离/最大距离
+    # 用户领券到消费平均时间间隔/最小间隔/最大间隔
+    # 消费时间间隔
+    # 领券消费时间间隔
+
     received.drop(['cnt'], axis=1, inplace=True)
     return data
 
+# wrong...
+'''
 def get_user_feature_predict(dataset):
     data=pd.DataFrame(dataset).copy()
     from pandas.tseries.offsets import Day
@@ -184,11 +204,139 @@ def get_user_feature_predict(dataset):
 
     print(data)
     return data
+'''
 
-def get_coupon_feature_history(dataset):
-    data=dataset.copy()
-    data=pd.DataFrame()
+def get_coupon_feature_history(received):
+    '''
+    提取历史区间(需要标签数据)的优惠券特征
+    - 保证传入的所有数据都有领券
+    - 保证传入的数据应有label列
+    - 分数下降: 2/3/4
+    '''
+    print("getting coupon_feature_history")
 
+    received=received.copy()
+    data=pd.DataFrame(list(set(received['Coupon_id'].tolist())),columns=['Coupon_id'])
+    received['cnt']=1
+    name_prifix = "coupon_feature_history_" #前缀
+
+    # 1、当前种类优惠券被领取数
+    pivoted=pd.pivot_table(
+        received,index='Coupon_id', values='cnt', aggfunc=np.sum
+            ).reset_index().rename(columns={'cnt': name_prifix+"total_coupon"})
+    data=pd.merge(data,pivoted,on='Coupon_id',how='left')
+
+    # 2、当前种类优惠券被领取"并消费"数 分数下降
+    pivoted=pd.pivot_table(
+        received,index='Coupon_id', values='label', aggfunc=np.sum
+            ).reset_index().rename(columns={'label': name_prifix+"used"})
+    data=pd.merge(data,pivoted,on='Coupon_id',how='left')
+    # print(data)
+
+    # 3、当前种类优惠券被领取"未消费"数 分数下降
+    data.insert(0,name_prifix+'not_use',data[name_prifix+'total_coupon']-data[name_prifix+"used"])
+    # print(data)
+
+    # 4、 当前种类优惠券被领取"并消费"数 / 领取数 分数下降
+    data.insert(0,name_prifix+'rate_used',data[name_prifix+"used"]/data[name_prifix+'total_coupon'])
+    # print(data)
+    # print(data[data[name_prifix+'rate_used']>0])
+    
+    # 是否满减
+    # 是否折扣
+    received.drop(['cnt'], axis=1, inplace=True)
+    return data
+
+
+def get_merchant_feature_label():
+
+    # 发放优惠券数
+    # 发放优惠券种类数
+    # (n天内)领券人数
+
+    return
+
+def get_merchant_feature_history():
+    # 店家领券购买量
+    # 店家不领券购买量
+    # 发放优惠券数
+    # 核销率
+    # 用券购买此店家的平均距离/最小最大距离
+    return
+
+def get_merchant_coupon_feature_label():
+
+    # 发放特定优惠券的领券数
+
+    return
+
+def get_merchant_user_feature_label():
+
+    # 领取特定店家优惠券的领券数
+
+    return
+
+def get_user_merchant_feature_history(arg_received, arg_all):
+    '''
+    提取历史区间(需要标签数据)商家和用户特征
+    - 保证传入的所有数据都有领券
+    - 保证传入的数据应有label列
+    - features的顺序与data_rec相同
+    - 稍后处理distance中-1的影响
+    '''
+    print("getting merchant_feature_history")
+    data_rec=arg_received.copy()[['User_id','Merchant_id','label','Distance']]
+    data_all=arg_all.copy()[['User_id','Merchant_id','label','Distance']]
+    data_rec['cnt']=1
+    data_all['cnt']=1
+
+    features=data_rec[['User_id','Merchant_id']].copy()
+    # feature_list=[]
+
+    # print(data)
+    name_prifix = "merchant_feature_history_" #前缀
+
+    # 用户在店家领券并消费数 分数下降
+    pivoted=pd.pivot_table(
+        data_rec,index=['User_id', 'Merchant_id'], values='label',aggfunc=np.sum
+            ).reset_index().rename(columns={'label': name_prifix+"user_merchant_rec_used"})
+    features=pd.merge(features,pivoted,on=['User_id','Merchant_id'],how='left')
+
+    # 用户在店家消费数
+    pivoted=pd.pivot_table(
+        data_all,index=['User_id', 'Merchant_id'], values='label',aggfunc=np.sum
+            ).reset_index().rename(columns={'label': name_prifix+"user_merchant_used"})
+    features=pd.merge(features,pivoted,on=['User_id','Merchant_id'],how='left')
+
+    # 率
+    user_rec_used = pd.pivot_table(
+        data_rec,index='User_id', values='label',aggfunc=np.sum
+            ).reset_index().rename(columns={'label': name_prifix+"user_rec_used"})
+    data_rec=pd.merge(data_rec, user_rec_used, on='User_id', how='left')
+    
+    user_used = pd.pivot_table(
+        data_all,index='User_id', values='label',aggfunc=np.sum
+            ).reset_index().rename(columns={'label': name_prifix+"user_used"})
+    data_rec=pd.merge(data_rec, user_used, on='User_id', how='left')
+    
+    # 用户在此商家领券购买数/领券购买总数 分数下降
+    features[name_prifix+"user_merchant_rec_used_rate"] = \
+        features[name_prifix+"user_merchant_rec_used"] / data_rec[name_prifix+"user_rec_used"]
+
+    # 用户在此商家购买数/购买总数 分数下降
+    features[name_prifix+"user_merchant_used_rate"] = \
+            features[name_prifix+"user_merchant_used"] / data_rec[name_prifix+"user_used"]
+
+    # # 用户与店家平均距离 分数下降
+    # pivoted=pd.pivot_table(
+    #     data_rec,index=['User_id', 'Merchant_id'], values='Distance',aggfunc=np.mean
+    #         ).reset_index().rename(columns={'Distance': name_prifix+"user_merchant_mean_distance"})
+    # features=pd.merge(features,pivoted,on=['User_id','Merchant_id'],how='left')
+    # print(features[name_prifix+'user_merchant_mean_distance'])
+
+    # 一个客户在一个商家一共收到的优惠券
+
+    return features
 
 
 
@@ -252,7 +400,7 @@ def model_xgb(train, validate):
     
     # 训练
     watchlist = [(dtrain, 'train'),(dval, 'val')]
-    model = xgb.train(params, dtrain, num_boost_round=250, evals=watchlist)
+    model = xgb.train(params, dtrain, num_boost_round=1360, evals=watchlist)
 
     return model
 
@@ -301,7 +449,6 @@ def get_result(model,test):
     print("results are saved.")
 
 
-
 off_train = pd.read_csv("resourse/data/ccf_offline_stage1_train.csv")
 off_test = pd.read_csv("resourse/data/ccf_offline_stage1_test_revised.csv")
 
@@ -310,44 +457,52 @@ get_label(off_train)
 preprocess(off_test)
 
 # 数据划分
-
-# def train_final():
 train_history_field=interval(off_train,'date_received','2016/1/1',60).copy()
 validate_history_field=interval(off_train,'date_received','2016/3/1',60).copy()
 # test_history_field=[]
 
+all_history_field_t=interval(off_train,'date','2016/1/1',60)
+all_history_field_v=interval(off_train,'date','2016/3/1',60)
+# all_history_field_test=[]
+
 train = interval(off_train,'date_received','2016/3/1',62).copy() # 训练集 0330
-validate = interval(off_train,'date_received','2016/5/17',31).copy() # 训练过程中用来检验的区间
+validate = interval(off_train,'date_received','2016/5/17',31).copy() # 验证集
 test = off_test # 测试集
+
 
 # 提取特征
 train=get_user_feature_label(train)
-validate=get_user_feature_label(validate)
-test=get_user_feature_label(test)
-
-# train=get_user_feature_test(train)
-# validate=get_user_feature_test(validate)
-
 user_feature_history_train=get_user_feature_history(train_history_field)
-user_feature_history_val=get_user_feature_history(validate_history_field)
-# user_feature_history_test=get_user_feature_history(test_history_field)
-
+coupon_feature_history_train=get_coupon_feature_history(train_history_field)
+merchant_feature_history_train=get_user_merchant_feature_history(train_history_field,all_history_field_t)
 # 合并特征
 train=pd.merge(train, user_feature_history_train, on='User_id', how='left')
-validate=pd.merge(validate, user_feature_history_val, on='User_id', how='left')
-# test=pd.merge(test, user_feature_history_test, on='User_id', how='left')
-
-# train.to_csv('result/train.csv', index=False)
-# validate.to_csv('result/val.csv', index=False)
+train=pd.merge(train, coupon_feature_history_train, on='Coupon_id', how='left')
+train=pd.merge(train, merchant_feature_history_train, on=['User_id','Merchant_id'], how='left')
 
 # 构造数据集
 train=get_dataset(train)
+
+
+validate=get_user_feature_label(validate)
+user_feature_history_val=get_user_feature_history(validate_history_field)
+coupon_feature_history_val=get_coupon_feature_history(validate_history_field)
+merchant_feature_history_val=get_user_merchant_feature_history(validate_history_field,all_history_field_v)
+validate=pd.merge(validate, user_feature_history_val, on='User_id', how='left')
+validate=pd.merge(validate, coupon_feature_history_val, on='Coupon_id', how='left')
+validate=pd.merge(validate, merchant_feature_history_val, on=['User_id','Merchant_id'], how='left')
 validate=get_dataset(validate)
+
+
+# test=get_user_feature_label(test)
+# user_feature_history_test=get_user_feature_history(test_history_field)
+# test=pd.merge(test, user_feature_history_test, on='User_id', how='left')
 # test=get_dataset(test)
 
 # 训练
 model = model_xgb(train, validate)
 get_feat_importance(model)
+model.save_model("model/")
 # get_result(model,test)
 
 
@@ -375,26 +530,3 @@ def get_intervaled_1(off_train, off_test):
     return train_history_field, train_label_field, \
         validate_history_field, validate_label_field, \
         test_history_field, test_label_field
-
-'''
-def train_easy():
-    train = get_dataset(interval(off_train,'date_received','2016/3/16',60)) # 训练集
-    validate = get_dataset(interval(off_train,'date_received','2016/5/17',31)) # 模型训练过程中用来检验的区间
-    test = get_dataset(test_label_field) # 测试集
-
-def train_validate_basic():
-    pre_test=interval(off_train,'date_received','2016/5/31', 31) #准备进行预测的区间
-    pre_test['Date']=np.nan
-    pre_test['label']=0
-    train = get_dataset(interval(off_train,'date_received','2016/4/1',61)) # 训练集
-    # validate = get_dataset(interval(off_train,'date_received','2016/5/17',31)) # 训练过程中用来检验的区间
-    test = get_dataset(pd.concat([interval(off_train,'date_received','2016/4/30', 31), pre_test], axis=0)) 
-    #验证集(pre_test和前31天的数据)
-
-def train_small():
-    train = get_dataset(interval(off_train,'date_received','2016/4/1',60)) # 训练集
-    pre_val=interval(off_train,'date_received','2016/5/31',31)
-    pre_val['label']=0
-    validate = get_dataset(pre_val) # 训练过程中用来检验的区间
-    test = get_dataset(off_test) 
-'''
