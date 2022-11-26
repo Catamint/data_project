@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import xgboost as xgb
+from pandas import MultiIndex, Int16Dtype
 
 # 数据预处理
 def preprocess(data):
@@ -53,15 +54,15 @@ def preprocess(data):
     off_train["Distance"]=off_train["Distance"].map(int)
 
 
-def get_user_feature(received):
+def get_user_feature_label(received):
     '''
-    提取用户特征
+    提取标签区间的用户特征
     - 保证传入的所有数据都有领券
     '''
     data = received.copy()
     print("getting user_features")
     data['cnt']=1
-    name_prifix="feature_" #前缀
+    name_prifix="user_feature_label_" #前缀
 
     # 用户领取特定种类券数
     pivoted=pd.pivot_table(
@@ -81,9 +82,9 @@ def get_user_feature(received):
     data.drop(['cnt'], axis=1, inplace=True)
     return data
 
-def get_user_feature_l(received):
+def get_user_feature_history(received):
     '''
-    提取需要标签数据的用户特征
+    提取历史区间(需要标签数据)的用户特征
     - 保证传入的所有数据都有领券
     - 保证传入的数据应有label列
     '''
@@ -92,7 +93,7 @@ def get_user_feature_l(received):
     received=received.copy()
     data=pd.DataFrame(list(set(received['User_id'].tolist())),columns=['User_id'])
     received['cnt']=1
-    name_prifix = "feature_basic_" #前缀
+    name_prifix = "user_feature_history_" #前缀
     
     # 1、用户领券数
     pivoted=pd.pivot_table(
@@ -164,7 +165,7 @@ def get_user_feature_l(received):
     received.drop(['cnt'], axis=1, inplace=True)
     return data
 
-def get_user_feature_test(dataset):
+def get_user_feature_predict(dataset):
     data=pd.DataFrame(dataset).copy()
     from pandas.tseries.offsets import Day
 
@@ -183,6 +184,13 @@ def get_user_feature_test(dataset):
 
     print(data)
     return data
+
+def get_coupon_feature_history(dataset):
+    data=dataset.copy()
+    data=pd.DataFrame()
+
+
+
 
 def get_label(data):
     # 数据打标
@@ -292,71 +300,83 @@ def get_result(model,test):
     result.to_csv('result/result.csv', index=False, header=None)
     print("results are saved.")
 
+
+
 off_train = pd.read_csv("resourse/data/ccf_offline_stage1_train.csv")
 off_test = pd.read_csv("resourse/data/ccf_offline_stage1_test_revised.csv")
 
 preprocess(off_train)
-preprocess(off_test)
 get_label(off_train)
+preprocess(off_test)
 
 # 数据划分
 
 # def train_final():
-feature_l_set_train=interval(off_train,'date_received','2016/1/1',60).copy()
-feature_l_set_val=interval(off_train,'date_received','2016/3/1',60).copy()
+train_history_field=interval(off_train,'date_received','2016/1/1',60).copy()
+validate_history_field=interval(off_train,'date_received','2016/3/1',60).copy()
+# test_history_field=[]
 
 train = interval(off_train,'date_received','2016/3/1',62).copy() # 训练集 0330
 validate = interval(off_train,'date_received','2016/5/17',31).copy() # 训练过程中用来检验的区间
 test = off_test # 测试集
 
 # 提取特征
-train=get_user_feature(train)
-validate=get_user_feature(validate)
-test=get_user_feature(test)
+train=get_user_feature_label(train)
+validate=get_user_feature_label(validate)
+test=get_user_feature_label(test)
 
 # train=get_user_feature_test(train)
 # validate=get_user_feature_test(validate)
 
-user_feature_l_train=get_user_feature_l(feature_l_set_train)
-user_feature_l_val=get_user_feature_l(feature_l_set_val)
+user_feature_history_train=get_user_feature_history(train_history_field)
+user_feature_history_val=get_user_feature_history(validate_history_field)
+# user_feature_history_test=get_user_feature_history(test_history_field)
 
 # 合并特征
-train=pd.merge(train, user_feature_l_train, on='User_id', how='left')
-validate=pd.merge(validate, user_feature_l_val, on='User_id', how='left')
-test=pd.merge(test, user_feature_l_train, on='User_id', how='left')
+train=pd.merge(train, user_feature_history_train, on='User_id', how='left')
+validate=pd.merge(validate, user_feature_history_val, on='User_id', how='left')
+# test=pd.merge(test, user_feature_history_test, on='User_id', how='left')
 
-train.to_csv('result/train.csv', index=False)
-validate.to_csv('result/val.csv', index=False)
-
+# train.to_csv('result/train.csv', index=False)
+# validate.to_csv('result/val.csv', index=False)
 
 # 构造数据集
 train=get_dataset(train)
 validate=get_dataset(validate)
-test=get_dataset(test)
+# test=get_dataset(test)
 
 # 训练
 model = model_xgb(train, validate)
 get_feat_importance(model)
-get_result(model,test)
+# get_result(model,test)
 
 
+### end ###
+
+
+
+def get_intervaled_1(off_train, off_test):
+
+    # 训练集历史区间、中间区间、标签区间
+    train_history_field = interval(off_train, 'date_received', '2016/3/2', 60)  # [20160302,20160501)
+    # train_middle_field = interval(off_train, 'date','2016/5/1', 15) # [20160501,20160516)
+    train_label_field = interval(off_train, 'date_received', '2016/5/16', 31)  # [20160516,20160616)
+
+    # 验证集历史区间、中间区间、标签区间
+    validate_history_field = interval(off_train, 'date_received', '2016/1/16', 60)  # [20160116,20160316)
+    # validate_middle_field = interval(off_train, 'date', '2016/3/16', 15)  # [20160316,20160331)
+    validate_label_field = interval(off_train, 'date_received', '2016/3/31', 31)  # [20160331,20160501)
+
+    # 测试集历史区间、中间区间、标签区间
+    test_history_field = interval(off_train, 'date_received', '2016/4/17', 60)  # [20160417,20160616)
+    # test_middle_field = interval(off_train, 'date', '2016/6/16', 15)  # [20160616,20160701)
+    test_label_field = off_test.copy()  # [20160701,20160801)
+
+    return train_history_field, train_label_field, \
+        validate_history_field, validate_label_field, \
+        test_history_field, test_label_field
 
 '''
-# 训练集历史区间、中间区间、标签区间
-train_history_field = interval(off_train, 'date_received', '2016/3/2', 60)  # [20160302,20160501)
-train_middle_field = interval(off_train, 'date','2016/5/1', 15) # [20160501,20160516)
-train_label_field = interval(off_train, 'date_received', '2016/5/16', 31)  # [20160516,20160616)
-
-# 验证集历史区间、中间区间、标签区间
-validate_history_field = interval(off_train, 'date_received', '2016/1/16', 60)  # [20160116,20160316)
-validate_middle_field = interval(off_train, 'date', '2016/3/16', 15)  # [20160316,20160331)
-validate_label_field = interval(off_train, 'date_received', '2016/3/31', 31)  # [20160331,20160501)
-
-# 测试集历史区间、中间区间、标签区间
-test_history_field = interval(off_train, 'date_received', '2016/4/17', 60)  # [20160417,20160616)
-test_middle_field = interval(off_train, 'date', '2016/6/16', 15)  # [20160616,20160701)
-test_label_field = off_test.copy()  # [20160701,20160801)
-
 def train_easy():
     train = get_dataset(interval(off_train,'date_received','2016/3/16',60)) # 训练集
     validate = get_dataset(interval(off_train,'date_received','2016/5/17',31)) # 模型训练过程中用来检验的区间
