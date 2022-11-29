@@ -103,6 +103,8 @@ def get_user_feature_label(received):
         received,index=['User_id', 'date_received'], values='cnt',aggfunc=np.sum
             ).reset_index().rename(columns={'cnt': name_prifix+"today_coupon"})
     received=pd.merge(received,pivoted,on=['User_id', 'date_received'],how='left')
+    # 平均每天领券数
+    
     # 用户是否当天领取同一券
 
     # 当天领取相同券数
@@ -110,8 +112,21 @@ def get_user_feature_label(received):
         received,index=['User_id', 'date_received', 'Coupon_id'], values='cnt',aggfunc=np.sum
             ).reset_index().rename(columns={'cnt': name_prifix+"today_this_coupon"})
     received=pd.merge(received,pivoted,on=['User_id', 'date_received', 'Coupon_id'],how='left')
-    received.drop(['cnt'], axis=1, inplace=True)
+    
+    # 折扣率均值
+    # 折扣率最大
+    # 折扣率最小
+
+    # 距离均值
+    # 距离最大
+    # 距离最小
+
+    # 领取满减优惠券数
+    
+    # 领取折扣优惠券数
+
     # 时间窗口截止日期距离领券日期的天数
+
     # 是否第一次/最后一次领券
 
     # 用户之前领取的相同券数
@@ -134,8 +149,9 @@ def get_user_feature_label(received):
     # data[name_prifix+'timedelta_rec_use']=data[name_prifix+'timedelta_rec_use'].map(lambda x: int(x) if x==x else -1)
     # print(data[name_prifix+'timedelta_rec_use'])
     '''
+    received.drop(['cnt'], axis=1, inplace=True)
 
-    # 排序特征
+    ######################## 排序特征 ########################
     name = 'User_id'
     # 折扣率排序
     received[name_prifix + 'discount_rate_rank'] = \
@@ -152,10 +168,11 @@ def get_user_feature_label(received):
         received.groupby(name)['Date_received'].rank(ascending = False)
     received[name_prifix + 'date_received_rank_ascend'] = \
         received.groupby(name)['Date_received'].rank(ascending = True)
-
-    # received[name_prifix + 'min_cost_of_manjian_rank_ascend'] = received.groupby(keys)['min in Manjian'].rank(ascending = True)
-    # received[name_prifix + 'min_cost_of_manjian_rank'] = received.groupby(keys)['min in Manjian'].rank(ascending = False)
-
+    # # 满减门槛价格排序
+    # received[name_prifix + 'price_before_rank'] = \
+    # received.groupby(name)['price_before'].rank(ascending = False)
+    # received[name_prifix + 'price_before_rank_ascend'] = \
+    # received.groupby(name)['price_before'].rank(ascending = True)
     return received
 
 def get_merchant_feature_label(received):
@@ -191,7 +208,14 @@ def get_merchant_feature_label(received):
 
     # (n天内)领券数
 
-    # 排序特征
+    # 折扣率均值
+    # 折扣率最大
+    # 折扣率最小
+
+    # 距离均值
+    # 距离最大
+    # 距离最小
+    ######################## 排序特征 ########################
     name = 'Merchant_id'
     # 折扣率排序
     received[name_prifix + 'discount_rate_rank'] = \
@@ -208,7 +232,11 @@ def get_merchant_feature_label(received):
         received.groupby(name)['Date_received'].rank(ascending = False)
     received[name_prifix + 'date_received_rank_ascend'] = \
         received.groupby(name)['Date_received'].rank(ascending = True)
-
+    # # 满减门槛价格排序
+    # received[name_prifix + 'price_before_rank'] = \
+    # received.groupby(name)['price_before'].rank(ascending = False)
+    # received[name_prifix + 'price_before_rank_ascend'] = \
+    # received.groupby(name)['price_before'].rank(ascending = True)
     return received
 
 def get_coupon_feature_label(received):
@@ -222,8 +250,8 @@ def get_coupon_feature_label(received):
 
     # discount_rate相同的数量
 
-    # 排序特征
-    name = 'Merchant_id'
+    ######################## 排序特征 ########################
+    name = 'Coupon_id'
     # 折扣率排序
     received[name_prifix + 'discount_rate_rank'] = \
         received.groupby(name)['discount'].rank(ascending = False)
@@ -239,7 +267,11 @@ def get_coupon_feature_label(received):
         received.groupby(name)['Date_received'].rank(ascending = False)
     received[name_prifix + 'date_received_rank_ascend'] = \
         received.groupby(name)['Date_received'].rank(ascending = True)
-
+    # # 满减门槛价格排序
+    # received[name_prifix + 'price_before_rank'] = \
+    # received.groupby(name)['price_before'].rank(ascending = False)
+    # received[name_prifix + 'price_before_rank_ascend'] = \
+    # received.groupby(name)['price_before'].rank(ascending = True)
     return received
 
 def get_merchant_coupon_feature_label():
