@@ -306,7 +306,17 @@ def get_coupon_feature_label(received):
     received['cnt']=1
     name_prifix="coupon_feature_label_" #前缀
 
-    # discount_rate相同的数量
+    # 当月领券数
+    pivoted=pd.pivot_table(
+        received,index='Coupon_id', values='cnt', aggfunc=np.sum
+            ).reset_index().rename(columns={'cnt': name_prifix+"total_received"})
+    received=pd.merge(received,pivoted,on='Coupon_id',how='left')
+
+    # # 当天领券数
+    # pivoted=pd.pivot_table(
+    #     received,index=['Coupon_id', 'date_received'], values='cnt',aggfunc=np.sum
+    #         ).reset_index().rename(columns={'cnt': name_prifix+"today_received"})
+    # received=pd.merge(received,pivoted,on=['Coupon_id', 'date_received'],how='left')
 
     ######################## 排序特征 ########################
     name = 'Coupon_id'
@@ -654,7 +664,7 @@ def model_xgb(train, validate, to_test=True, big_train=True):
         big_train.to_csv('result/features/big_train.csv')
         dtrain = xgb.DMatrix(big_train.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=big_train['label'])
         watchlist = [(dtrain, 'train')]
-        model = xgb.train(params, dtrain, num_boost_round=900, evals=watchlist)
+        model = xgb.train(params, dtrain, num_boost_round=1900, evals=watchlist)
     else:
         dtrain = xgb.DMatrix(train.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=train['label'])
         dval = xgb.DMatrix(validate.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=validate['label'])
@@ -737,7 +747,7 @@ validate=get_feature_for(validate_history_field, all_history_field_v, validate)
 test=get_feature_for(test_history_field, all_history_field_test, test)
 
 # 训练
-to_test=False
+to_test= True
 model = model_xgb(train, validate, to_test=to_test, big_train=True)
 get_feat_importance(model)
 # model.save_model("model/")
@@ -746,25 +756,3 @@ if to_test==True:
     get_result(model,test)
 
 ### end ###
-
-
-def get_intervaled_1(off_train, off_test):
-
-    # 训练集历史区间、中间区间、标签区间
-    train_history_field = interval(off_train, 'date_received', '2016/3/2', 60)  # [20160302,20160501)
-    # train_middle_field = interval(off_train, 'date','2016/5/1', 15) # [20160501,20160516)
-    train_label_field = interval(off_train, 'date_received', '2016/5/16', 31)  # [20160516,20160616)
-
-    # 验证集历史区间、中间区间、标签区间
-    validate_history_field = interval(off_train, 'date_received', '2016/1/16', 60)  # [20160116,20160316)
-    # validate_middle_field = interval(off_train, 'date', '2016/3/16', 15)  # [20160316,20160331)
-    validate_label_field = interval(off_train, 'date_received', '2016/3/31', 31)  # [20160331,20160501)
-
-    # 测试集历史区间、中间区间、标签区间
-    test_history_field = interval(off_train, 'date_received', '2016/4/17', 60)  # [20160417,20160616)
-    # test_middle_field = interval(off_train, 'date', '2016/6/16', 15)  # [20160616,20160701)
-    test_label_field = off_test.copy()  # [20160701,20160801)
-
-    return train_history_field, train_label_field, \
-        validate_history_field, validate_label_field, \
-        test_history_field, test_label_field
