@@ -654,7 +654,7 @@ def model_xgb(train, validate, to_test=True, big_train=True):
         big_train.to_csv('result/features/big_train.csv')
         dtrain = xgb.DMatrix(big_train.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=big_train['label'])
         watchlist = [(dtrain, 'train')]
-        model = xgb.train(params, dtrain, num_boost_round=900, evals=watchlist)
+        model = xgb.train(params, dtrain, num_boost_round=600, evals=watchlist)
     else:
         dtrain = xgb.DMatrix(train.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=train['label'])
         dval = xgb.DMatrix(validate.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=validate['label'])
@@ -700,10 +700,10 @@ def get_feature_for(history_field, all_his_field, label_field, filename=None):
     label_field=get_user_feature_label(label_field)
     label_field=get_merchant_feature_label(label_field)
     label_field=get_coupon_feature_label(label_field)
-    label_field=get_user_feature_history(history_field, label_field)
-    label_field=get_coupon_feature_history(history_field, label_field)
-    label_field=get_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
-    label_field=get_user_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
+    # label_field=get_user_feature_history(history_field, label_field)
+    # label_field=get_coupon_feature_history(history_field, label_field)
+    # label_field=get_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
+    # label_field=get_user_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
 
     if filename != None:
         label_field.to_csv('result/features/'+filename+'.csv')
@@ -720,16 +720,16 @@ get_label(off_train)
 preprocess(off_test)
 
 # 数据划分
-train_history_field=interval(off_train,'date_received','2016/1/31',90).copy()
-all_history_field_t=interval(off_train,'date','2016/1/31',90).copy()
-train = interval(off_train,'date_received','2016/4/30',31).copy() # 训练集
+train_history_field=interval(off_train,'date_received','2016/1/16',60).copy()
+all_history_field_t=interval(off_train,'date','2016/1/16',60).copy()
+train = interval(off_train,'date_received','2016/3/31',31).copy() # 训练集 0330
 
-validate_history_field=interval(off_train,'date_received','2016/3/2',90).copy()
-all_history_field_v=interval(off_train,'date','2016/3/2',90).copy()
-validate = interval(off_train,'date_received','2016/5/31',31).copy() # 验证集
+validate_history_field=interval(off_train,'date_received','2016/3/1',60).copy()
+all_history_field_v=interval(off_train,'date','2016/3/1',60).copy()
+validate = interval(off_train,'date_received','2016/5/17',31).copy() # 验证集
 
-test_history_field=interval(off_train,'date_received','2016/4/1',90).copy()
-all_history_field_test=interval(off_train,'date','2016/4/1',90).copy()
+test_history_field=interval(off_train,'date_received','2016/4/17',60).copy()
+all_history_field_test=interval(off_train,'date','2016/4/17',60).copy()
 test = off_test # 测试集
 
 train=get_feature_for(train_history_field, all_history_field_t, train, 'train')
@@ -737,7 +737,7 @@ validate=get_feature_for(validate_history_field, all_history_field_v, validate)
 test=get_feature_for(test_history_field, all_history_field_test, test)
 
 # 训练
-to_test=False
+to_test=True
 model = model_xgb(train, validate, to_test=to_test, big_train=True)
 get_feat_importance(model)
 # model.save_model("model/")
