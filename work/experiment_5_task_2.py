@@ -86,7 +86,7 @@ def get_user_feature_label(received):
     '''
     print("getting user_feature_label")
     received['cnt']=1
-    name_prifix="user_feature_label_" #前缀
+    name_prifix="u_l_" #前缀
 
     # 1、用户当月领券数
     pivoted=pd.pivot_table(
@@ -247,7 +247,7 @@ def get_merchant_feature_label(received):
     '''
     print("getting merchant_feature_label")
     received['cnt']=1
-    name_prifix="merchant_feature_label_" #前缀
+    name_prifix="m_l_" #前缀
     
     # 发放优惠券数
     pivoted=received.groupby('Merchant_id').agg({'cnt': sum}).reset_index() \
@@ -304,7 +304,7 @@ def get_coupon_feature_label(received):
     '''
     print("getting user_feature_label")
     received['cnt']=1
-    name_prifix="coupon_feature_label_" #前缀
+    name_prifix="c_l_" #前缀
 
     # 当月领券数
     pivoted=pd.pivot_table(
@@ -365,7 +365,7 @@ def get_user_feature_history(received, concat_on):
     print("getting user_feature_history")
     received=received.copy()
     received['cnt']=1
-    name_prifix = "user_feature_history_" #前缀
+    name_prifix = "u_h_" #前缀
     
     # 1、用户领券数
     pivoted=pd.pivot_table(
@@ -461,7 +461,7 @@ def get_coupon_feature_history(received, concat_on):
     print("getting coupon_feature_history")
     received=received.copy()
     received['cnt']=1
-    name_prifix = "coupon_feature_history_" #前缀
+    name_prifix = "c_h_" #前缀
     # print(received)
     # 1、当前种类优惠券被领取数
     pivoted=pd.pivot_table(
@@ -500,7 +500,7 @@ def get_merchant_feature_history(arg_received, arg_all, concat_on):
     data_received=arg_received.copy()
     # data_all=arg_all.copy()
     data_received['cnt']=1
-    name_prifix = "merchant_feature_history_" #前缀
+    name_prifix = "m_h_" #前缀
 
     # 发放优惠券数
     pivoted=pd.pivot_table(
@@ -543,7 +543,7 @@ def get_user_merchant_feature_history(arg_received, arg_all, concat_on):
     data_all=arg_all.copy()[['User_id','Merchant_id','label','Distance']]
     data_rec['cnt']=1
     data_all['cnt']=1
-    name_prifix = "user_merchant_feature_history_" #前缀
+    name_prifix = "um_h_" #前缀
 
     # 用户在店家领券并消费数 分数下降
     pivoted=pd.pivot_table(
@@ -747,7 +747,7 @@ validate=get_feature_for(validate_history_field, all_history_field_v, validate)
 test=get_feature_for(test_history_field, all_history_field_test, test)
 
 # 训练
-to_test= True
+to_test= False
 model = model_xgb(train, validate, to_test=to_test, big_train=True)
 get_feat_importance(model)
 # model.save_model("model/")
