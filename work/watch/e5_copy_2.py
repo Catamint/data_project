@@ -199,6 +199,7 @@ def get_user_feature_label(received):
     # 用户距上次领券时间间隔
 
     # 用户距下次领券时间间隔
+
     '''
     # pivoted = data[["User_id","Date_received"]]
     # pivoted["date_received_next"]=next_date_series(pivoted,"Date_received")
@@ -652,7 +653,7 @@ def model_xgb(train, validate, to_test=True, big_train=True):
               'colsample_bytree': 0.7,
               'subsample': 0.7,
               'tree_method': 'gpu_hist',
-              'scale_pos_weight': 26}
+              'scale_pos_weight': 1}
 
     if to_test==False:
         dtrain = xgb.DMatrix(train.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=train['label'])
@@ -727,11 +728,6 @@ off_test = pd.read_csv("resourse/data/ccf_offline_stage1_test_revised.csv")
 
 preprocess(off_train)
 get_label(off_train)
-
-# print(len(off_train[off_train['label']==1]))
-# print(len(off_train[off_train['label']==0]))
-# input()
-
 preprocess(off_test)
 
 # 数据划分
@@ -752,7 +748,7 @@ validate=get_feature_for(validate_history_field, all_history_field_v, validate)
 test=get_feature_for(test_history_field, all_history_field_test, test)
 
 # 训练
-to_test= True
+to_test= False
 model = model_xgb(train, validate, to_test=to_test, big_train=True)
 get_feat_importance(model)
 # model.save_model("model/")

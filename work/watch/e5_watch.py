@@ -60,6 +60,7 @@ def preprocess(received):
     ## 统一数据格式
     data["Distance"]=data["Distance"].map(int)
 
+'''
 def next_date_series(data=pd.DataFrame(), column='column_not_found'):
     users=data[['User_id']].groupby('User_id').agg(sum)
     users['next']=np.nan
@@ -77,7 +78,7 @@ def next_date_series(data=pd.DataFrame(), column='column_not_found'):
     next_series=sorted_data['next_'+column].copy()
     # print(next_series)
     return next_series
-
+'''
 
 def get_user_feature_label(received):
     '''
@@ -113,66 +114,66 @@ def get_user_feature_label(received):
             ).reset_index().rename(columns={'cnt': name_prifix+"today_this_coupon"})
     received=pd.merge(received,pivoted,on=['User_id', 'date_received', 'Coupon_id'],how='left')
     
-
-    # # 折扣率均值
-    # pivoted=pd.pivot_table(
-    #     received,index='User_id', values='discount', aggfunc=np.average
-    #         ).reset_index().rename(columns={'discount': name_prifix+"average_discount"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"average_discount"] = \
-    #     received[name_prifix+"average_discount"].map(lambda x: -1 if x!=x else x)
-    # # 折扣率最大
-    # pivoted=pd.pivot_table(
-    #     received,index='User_id', values='discount', aggfunc=np.max
-    #         ).reset_index().rename(columns={'discount': name_prifix+"max_discount"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"max_discount"] = \
-    #     received[name_prifix+"max_discount"].map(lambda x: -1 if x!=x else x)
-    # # 折扣率最小
-    # pivoted=pd.pivot_table(
-    #     received,index='User_id', values='discount', aggfunc=np.min
-    #         ).reset_index().rename(columns={'discount': name_prifix+"min_discount"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"min_discount"] = \
-    #     received[name_prifix+"min_discount"].map(lambda x: -1 if x!=x else x)
-    # # 折扣率中位数
-    # pivoted=pd.pivot_table(
-    #     received,index='User_id', values='discount', aggfunc=np.median
-    #         ).reset_index().rename(columns={'discount': name_prifix+"median_discount"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"median_discount"] = \
-    #     received[name_prifix+"median_discount"].map(lambda x: -1 if x!=x else x)
+    '''
+    # 折扣率均值
+    pivoted=pd.pivot_table(
+        received,index='User_id', values='discount', aggfunc=np.average
+            ).reset_index().rename(columns={'discount': name_prifix+"average_discount"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"average_discount"] = \
+        received[name_prifix+"average_discount"].map(lambda x: -1 if x!=x else x)
+    # 折扣率最大
+    pivoted=pd.pivot_table(
+        received,index='User_id', values='discount', aggfunc=np.max
+            ).reset_index().rename(columns={'discount': name_prifix+"max_discount"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"max_discount"] = \
+        received[name_prifix+"max_discount"].map(lambda x: -1 if x!=x else x)
+    # 折扣率最小
+    pivoted=pd.pivot_table(
+        received,index='User_id', values='discount', aggfunc=np.min
+            ).reset_index().rename(columns={'discount': name_prifix+"min_discount"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"min_discount"] = \
+        received[name_prifix+"min_discount"].map(lambda x: -1 if x!=x else x)
+    # 折扣率中位数
+    pivoted=pd.pivot_table(
+        received,index='User_id', values='discount', aggfunc=np.median
+            ).reset_index().rename(columns={'discount': name_prifix+"median_discount"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"median_discount"] = \
+        received[name_prifix+"median_discount"].map(lambda x: -1 if x!=x else x)
    
-    # have_distance=received[received['Distance']!=-1].copy()
-    # # 距离均值
-    # pivoted=pd.pivot_table(
-    #     have_distance,index='User_id', values='Distance', aggfunc=np.average
-    #         ).reset_index().rename(columns={'Distance': name_prifix+"average_Distance"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"average_Distance"] = \
-    #     received[name_prifix+"average_Distance"].map(lambda x: -1 if x!=x else x)
-    # # 距离最大
-    # pivoted=pd.pivot_table(
-    #     have_distance,index='User_id', values='Distance', aggfunc=np.max
-    #         ).reset_index().rename(columns={'Distance': name_prifix+"max_Distance"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"max_Distance"] = \
-    #     received[name_prifix+"max_distance"].map(lambda x: -1 if x!=x else x)
-    # # 距离最小
-    # pivoted=pd.pivot_table(
-    #     have_distance,index='User_id', values='Distance', aggfunc=np.min
-    #         ).reset_index().rename(columns={'Distance': name_prifix+"min_Distance"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"min_Distance"] = \
-    #     received[name_prifix+"min_distance"].map(lambda x: -1 if x!=x else x)
-    # # 距离中位数
-    # pivoted=pd.pivot_table(
-    #     have_distance,index='User_id', values='Distance', aggfunc=np.median
-    #         ).reset_index().rename(columns={'Distance': name_prifix+"median_Distance"})
-    # received=pd.merge(received,pivoted,on='User_id',how='left')
-    # received[name_prifix+"median_Distance"] = \
-    #     received[name_prifix+"median_Distance"].map(lambda x: -1 if x!=x else x)
-   
+    have_distance=received[received['Distance']!=-1].copy()
+    # 距离均值
+    pivoted=pd.pivot_table(
+        have_distance,index='User_id', values='Distance', aggfunc=np.average
+            ).reset_index().rename(columns={'Distance': name_prifix+"average_Distance"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"average_Distance"] = \
+        received[name_prifix+"average_Distance"].map(lambda x: -1 if x!=x else x)
+    # 距离最大
+    pivoted=pd.pivot_table(
+        have_distance,index='User_id', values='Distance', aggfunc=np.max
+            ).reset_index().rename(columns={'Distance': name_prifix+"max_Distance"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"max_Distance"] = \
+        received[name_prifix+"max_distance"].map(lambda x: -1 if x!=x else x)
+    # 距离最小
+    pivoted=pd.pivot_table(
+        have_distance,index='User_id', values='Distance', aggfunc=np.min
+            ).reset_index().rename(columns={'Distance': name_prifix+"min_Distance"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"min_Distance"] = \
+        received[name_prifix+"min_distance"].map(lambda x: -1 if x!=x else x)
+    # 距离中位数
+    pivoted=pd.pivot_table(
+        have_distance,index='User_id', values='Distance', aggfunc=np.median
+            ).reset_index().rename(columns={'Distance': name_prifix+"median_Distance"})
+    received=pd.merge(received,pivoted,on='User_id',how='left')
+    received[name_prifix+"median_Distance"] = \
+        received[name_prifix+"median_Distance"].map(lambda x: -1 if x!=x else x)
+   '''
 
     # 领取满减优惠券数
     
@@ -196,25 +197,24 @@ def get_user_feature_label(received):
 
     # 用户之前领取的相同券数
 
-    # 用户距上次领券时间间隔
-
-    # 用户距下次领券时间间隔
     '''
-    # pivoted = data[["User_id","Date_received"]]
-    # pivoted["date_received_next"]=next_date_series(pivoted,"Date_received")
-    # print(pivoted)
-    # print(pivoted[pivoted['date_received_next'].notnull()])
+    用户距上次领券时间间隔
+    用户距下次领券时间间隔
+    pivoted = data[["User_id","Date_received"]]
+    pivoted["date_received_next"]=next_date_series(pivoted,"Date_received")
+    print(pivoted)
+    print(pivoted[pivoted['date_received_next'].notnull()])
 
-    # input()
+    input()
 
-    # pivoted[name_prifix+'timedelta_rec_use'] = received_used["Date"]-received_used["Date_received"]
-    # pivoted=pivoted.groupby("User_id").agg(np.mean).reset_index()
-    # print(pivoted)
-    # data=pd.merge(data,pivoted,on='User_id',how='left')
-    # data[name_prifix+'timedelta_rec_use']=data[name_prifix+'timedelta_rec_use'].map(lambda x: int(x) if x==x else -1)
-    # print(data[name_prifix+'timedelta_rec_use'])
+    pivoted[name_prifix+'timedelta_rec_use'] = received_used["Date"]-received_used["Date_received"]
+    pivoted=pivoted.groupby("User_id").agg(np.mean).reset_index()
+    print(pivoted)
+    data=pd.merge(data,pivoted,on='User_id',how='left')
+    data[name_prifix+'timedelta_rec_use']=data[name_prifix+'timedelta_rec_use'].map(lambda x: int(x) if x==x else -1)
+    print(data[name_prifix+'timedelta_rec_use'])
     '''
-    received.drop(['cnt'], axis=1, inplace=True)
+
 
     ######################## 排序特征 ########################
     name = 'User_id'
@@ -223,6 +223,7 @@ def get_user_feature_label(received):
         received.groupby(name)['discount'].rank(ascending = False)
     received[name_prifix + 'discount_rate_rank_ascend'] = \
         received.groupby(name)['discount'].rank(ascending = True)
+    
     # 距离排序
     received[name_prifix + 'distance_rank'] = \
         received.groupby(name)['Distance'].rank(ascending = False)
@@ -233,11 +234,23 @@ def get_user_feature_label(received):
         received.groupby(name)['Date_received'].rank(ascending = False)
     received[name_prifix + 'date_received_rank_ascend'] = \
         received.groupby(name)['Date_received'].rank(ascending = True)
+
+    used=received[received['label']==1]
+    not_use=received[received['label']==0]
+    # used[name_prifix+'discount_rate_rank'].plot.box()
+    # not_use[name_prifix+'discount_rate_rank'].plot.box()
+
+    # rec=received[['label',name_prifix+'discount_rate_rank']]
+    ax=used[name_prifix+'discount_rate_rank'].plot.hist(bins=12,density=True,color='blue',alpha=0.5)
+    not_use[name_prifix+'discount_rate_rank'].plot.hist(density=True,color='red',alpha=0.5,ax=ax)
+    plt.show()
+    
     # # 满减门槛价格排序
     # received[name_prifix + 'price_before_rank'] = \
     # received.groupby(name)['price_before'].rank(ascending = False)
     # received[name_prifix + 'price_before_rank_ascend'] = \
     # received.groupby(name)['price_before'].rank(ascending = True)
+    received.drop(['cnt'], axis=1, inplace=True)
     return received
 
 def get_merchant_feature_label(received):
@@ -353,7 +366,6 @@ def get_merchant_user_feature_label():
     # 领取特定店家优惠券的领券数
 
     return
-
 
 def get_user_feature_history(received, concat_on):
     '''
@@ -599,7 +611,6 @@ def get_user_merchant_feature_history(arg_received, arg_all, concat_on):
     # 一个客户在一个商家一共收到的优惠券
     return concat_on
 
-
 def get_label(data):
     # 数据打标
     total_seconds = 15*24*3600.0
@@ -652,7 +663,7 @@ def model_xgb(train, validate, to_test=True, big_train=True):
               'colsample_bytree': 0.7,
               'subsample': 0.7,
               'tree_method': 'gpu_hist',
-              'scale_pos_weight': 26}
+              'scale_pos_weight': 1}
 
     if to_test==False:
         dtrain = xgb.DMatrix(train.drop(['User_id', 'Coupon_id', 'Date_received', 'label'], axis=1), label=train['label'])
@@ -708,12 +719,12 @@ def get_result(model,test):
 def get_feature_for(history_field, all_his_field, label_field, filename=None):
     # 提取特征
     label_field=get_user_feature_label(label_field)
-    label_field=get_merchant_feature_label(label_field)
-    label_field=get_coupon_feature_label(label_field)
-    label_field=get_user_feature_history(history_field, label_field)
-    label_field=get_coupon_feature_history(history_field, label_field)
-    label_field=get_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
-    label_field=get_user_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
+    # label_field=get_merchant_feature_label(label_field)
+    # label_field=get_coupon_feature_label(label_field)
+    # label_field=get_user_feature_history(history_field, label_field)
+    # label_field=get_coupon_feature_history(history_field, label_field)
+    # label_field=get_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
+    # label_field=get_user_merchant_feature_history(history_field,all_his_field,label_field) # 不对劲
 
     if filename != None:
         label_field.to_csv('result/features/'+filename+'.csv')
@@ -727,37 +738,33 @@ off_test = pd.read_csv("resourse/data/ccf_offline_stage1_test_revised.csv")
 
 preprocess(off_train)
 get_label(off_train)
-
-# print(len(off_train[off_train['label']==1]))
-# print(len(off_train[off_train['label']==0]))
-# input()
-
 preprocess(off_test)
 
 # 数据划分
 train_history_field=interval(off_train,'date_received','2016/1/31',90).copy()
 all_history_field_t=interval(off_train,'date','2016/1/31',90).copy()
 train = interval(off_train,'date_received','2016/4/30',31).copy() # 训练集
+train=get_feature_for(train_history_field, all_history_field_t, train, 'train')
 
+'''
 validate_history_field=interval(off_train,'date_received','2016/3/2',90).copy()
 all_history_field_v=interval(off_train,'date','2016/3/2',90).copy()
 validate = interval(off_train,'date_received','2016/5/31',31).copy() # 验证集
+validate=get_feature_for(validate_history_field, all_history_field_v, validate)
 
 test_history_field=interval(off_train,'date_received','2016/4/1',90).copy()
 all_history_field_test=interval(off_train,'date','2016/4/1',90).copy()
 test = off_test # 测试集
-
-train=get_feature_for(train_history_field, all_history_field_t, train, 'train')
-validate=get_feature_for(validate_history_field, all_history_field_v, validate)
 test=get_feature_for(test_history_field, all_history_field_test, test)
 
 # 训练
-to_test= True
+to_test= False
 model = model_xgb(train, validate, to_test=to_test, big_train=True)
 get_feat_importance(model)
 # model.save_model("model/")
 
 if to_test==True:
     get_result(model,test)
+'''
 
 ### end ###
