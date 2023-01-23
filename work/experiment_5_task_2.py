@@ -2,8 +2,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import xgboost as xgb
-# from pandas import MultiIndex, Int16Dtype
 # import shap
+
+off_train = pd.read_csv("resourse/data/ccf_offline_stage1_train.csv")
+off_test = pd.read_csv("resourse/data/ccf_offline_stage1_test_revised.csv")
 
 # 数据预处理
 def preprocess(received):
@@ -721,9 +723,6 @@ def get_feature_for(history_field, all_his_field, label_field, filename=None):
     label_field=get_dataset(label_field)
     return label_field
 
-
-off_train = pd.read_csv("resourse/data/ccf_offline_stage1_train.csv")
-off_test = pd.read_csv("resourse/data/ccf_offline_stage1_test_revised.csv")
 
 preprocess(off_train)
 get_label(off_train)
